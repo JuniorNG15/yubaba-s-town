@@ -1,6 +1,7 @@
 extends Node2D
 
-const FICHIER := "res://backend/events.jsonl"
+const HOTE := "127.0.0.1"
+const PORT := 8765
 const SECONDES_PAR_TOUR := 1.5
 const COULEURS := {"S": Color("4caf50"), "I": Color("d62828"), "R": Color("3a86ff")}
 
@@ -27,30 +28,69 @@ var minuteur := 0.0
 var en_pause := false
 var police := ThemeDB.fallback_font
 
+var tcp := StreamPeerTCP.new()
+var tampon := PackedByteArray()
+var connecte := false
+var prochain_essai := 0.0
+
 
 func _ready() -> void:
 	randomize()
-	charger()
-	appliquer_tour(0)
+	se_connecter()
 
 
-func charger() -> void:
-	var f := FileAccess.open(FICHIER, FileAccess.READ)
-	if f == null:
-		push_error("Fichier introuvable : " + FICHIER + ". Lancez d'abord : python backend\\evenements.py")
+func se_connecter() -> void:
+	tcp = StreamPeerTCP.new()
+	tampon = PackedByteArray()
+	tcp.connect_to_host(HOTE, PORT)
+
+
+func lire_reseau(delta: float) -> void:
+	tcp.poll()
+	match tcp.get_status():
+		StreamPeerTCP.STATUS_CONNECTED:
+			if not connecte:
+				connecte = true
+				vider()  # nouvelle connexion : le pont rejoue tout depuis le début
+			var n := tcp.get_available_bytes()
+			if n > 0:
+				var r := tcp.get_data(n)
+				if r[0] == OK:
+					tampon.append_array(r[1])
+					traiter_tampon()
+		StreamPeerTCP.STATUS_NONE, StreamPeerTCP.STATUS_ERROR:
+			connecte = false
+			prochain_essai -= delta
+			if prochain_essai <= 0.0:
+				prochain_essai = 2.0
+				se_connecter()
+
+
+func traiter_tampon() -> void:
+	var idx := tampon.rfind(10)  # 10 = retour à la ligne
+	if idx < 0:
 		return
-	while not f.eof_reached():
-		var ligne := f.get_line().strip_edges()
-		if ligne == "":
-			continue
-		var e = JSON.parse_string(ligne)
-		if e == null:
-			continue
-		var t := int(e["tour"])
-		if not evenements_par_tour.has(t):
-			evenements_par_tour[t] = []
-		evenements_par_tour[t].append(e)
-		tour_max = max(tour_max, t)
+	var complet := tampon.slice(0, idx + 1)
+	tampon = tampon.slice(idx + 1)
+	for ligne in complet.get_string_from_utf8().split("\n", false):
+		ajouter_evenement(ligne)
+
+
+func ajouter_evenement(ligne: String) -> void:
+	var e = JSON.parse_string(ligne)
+	if not (e is Dictionary):
+		return
+	var t := int(e["tour"])
+	if not evenements_par_tour.has(t):
+		evenements_par_tour[t] = []
+	evenements_par_tour[t].append(e)
+	tour_max = max(tour_max, t)
+
+
+func vider() -> void:
+	evenements_par_tour.clear()
+	tour_max = 0
+	redemarrer()
 
 
 func point_dans(lieu: String) -> Vector2:
@@ -60,27 +100,30 @@ func point_dans(lieu: String) -> Vector2:
 
 func appliquer_tour(t: int) -> void:
 	for e in evenements_par_tour.get(t, []):
+		var nom: String = e["habitant"]
 		match e["type"]:
 			"init":
 				var h := Habitant.new()
-				h.nom = e["habitant"]
+				h.nom = nom
 				h.etat = e["etat"]
 				h.pos = point_dans(e["lieu"])
 				h.cible = h.pos
-				habitants[h.nom] = h
+				habitants[nom] = h
 			"deplacement":
-				habitants[e["habitant"]].cible = point_dans(e["vers"])
+				if habitants.has(nom):
+					habitants[nom].cible = point_dans(e["vers"])
 			"contamination":
-				habitants[e["habitant"]].etat = "I"
+				if habitants.has(nom):
+					habitants[nom].etat = "I"
 			"guerison":
-				habitants[e["habitant"]].etat = "R"
+				if habitants.has(nom):
+					habitants[nom].etat = "R"
 
 
 func redemarrer() -> void:
 	habitants.clear()
 	tour = 0
 	minuteur = 0.0
-	appliquer_tour(0)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -91,6 +134,9 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _process(delta: float) -> void:
+	lire_reseau(delta)
+	if habitants.is_empty() and evenements_par_tour.has(0):
+		appliquer_tour(0)
 	if not en_pause:
 		minuteur += delta
 		if minuteur >= SECONDES_PAR_TOUR and tour < tour_max:
@@ -122,4 +168,6 @@ func _draw() -> void:
 
 	var etat_txt := "Yubaba's Town   Tour %d/%d   Sains: %d   Infectés: %d   Guéris: %d" % [tour, tour_max, c["S"], c["I"], c["R"]]
 	draw_string(police, Vector2(20, 36), etat_txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 24, Color.BLACK)
+	var lien := "Pont Kafka : connecté" if connecte else "Pont Kafka : en attente (python backend\\pont.py)"
+	draw_string(police, Vector2(20, 595), lien, HORIZONTAL_ALIGNMENT_LEFT, -1, 18, Color.BLACK)
 	draw_string(police, Vector2(20, 620), "Espace = pause    R = recommencer", HORIZONTAL_ALIGNMENT_LEFT, -1, 18, Color.BLACK)
