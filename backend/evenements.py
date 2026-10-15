@@ -22,11 +22,17 @@ def main():
     noms = ["Mara", "Tomas", "Ilse", "Bram", "Noa"]
     monde = Monde(noms, beta=0.5)
     compte = {}
+
+    def ecrire(f, e):
+        f.write(json.dumps(e, ensure_ascii=False) + "\n")
+        compte[e["type"]] = compte.get(e["type"], 0) + 1
+
     with open("backend/events.jsonl", "w", encoding="utf-8") as f:
+        for h in monde.habitants:
+            ecrire(f, {"tour": 0, "habitant": h.nom, "type": "init", "lieu": h.lieu, "etat": h.etat})
         for _ in range(40):
             for e in evenements_du_tour(monde):
-                f.write(json.dumps(e, ensure_ascii=False) + "\n")
-                compte[e["type"]] = compte.get(e["type"], 0) + 1
+                ecrire(f, e)
     print("Événements écrits dans backend/events.jsonl :", compte)
 
 
