@@ -1,3 +1,6 @@
 .godot/
 *.translation
 /android/
+__pycache__/
+*.pyc
+backend/events.jsonl
