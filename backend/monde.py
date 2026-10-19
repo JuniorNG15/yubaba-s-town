@@ -34,9 +34,12 @@ class Habitant:
     lieu: str = MAISON
     memoire: list = field(default_factory=list)
     decision: dict = field(default_factory=dict)
+    nouveaux: list = field(default_factory=list)
 
     def se_souvenir(self, tour, genre, detail, importance):
         self.memoire.append({"tour": tour, "genre": genre, "detail": detail, "importance": importance})
+        if importance >= 2:
+            self.nouveaux.append(self.memoire[-1])
         if len(self.memoire) > MEMOIRE_MAX:
             # on oublie d'abord le moins important, et à égalité le plus ancien
             oubli = min(self.memoire, key=lambda m: (m["importance"], m["tour"]))
@@ -152,6 +155,10 @@ class MondeAgents:
             h.etat = "I"
             evts.append({"tour": T, "habitant": h.nom, "type": "contamination", "lieu": h.lieu})
 
+        for h in self.habitants:
+            for m in h.nouveaux:
+                evts.append({"tour": T, "habitant": h.nom, "type": "souvenir", "genre": m["genre"], "detail": m["detail"]})
+            h.nouveaux.clear()
         self.tour = T
         self.historique_infectes.append(self.compter()["I"])
         return evts

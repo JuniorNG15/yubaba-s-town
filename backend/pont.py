@@ -7,7 +7,7 @@ from confluent_kafka import Consumer
 TOPIC = "evenements-monde"
 SERVEUR_KAFKA = "localhost:9092"
 HOTE, PORT = "127.0.0.1", 8765
-TYPES = ("init", "deplacement", "contamination", "guerison", "decision", "croyance")
+TYPES = ("init", "deplacement", "contamination", "guerison", "decision", "croyance", "souvenir")
 
 
 def servir(client):

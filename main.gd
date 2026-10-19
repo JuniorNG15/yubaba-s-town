@@ -19,6 +19,7 @@ class Habitant:
 	var croyance_contact: float = 0.0
 	var regle: String = "(aucune décision encore)"
 	var detail: String = ""
+	var souvenirs: Array = []
 	var vitesse: float = 600.0
 
 var batiments := {
@@ -140,6 +141,11 @@ func appliquer_tour(t: int) -> void:
 				if habitants.has(nom):
 					habitants[nom].regle = e["regle"]
 					habitants[nom].detail = e["detail"]
+			"souvenir":
+				if habitants.has(nom):
+					habitants[nom].souvenirs.append("tour %d : %s" % [t, e["detail"]])
+					if habitants[nom].souvenirs.size() > 3:
+						habitants[nom].souvenirs.pop_front()
 			"croyance":
 				if habitants.has(nom):
 					if e["cible"] == "puits":
@@ -213,7 +219,14 @@ func _draw() -> void:
 	if selection != "" and habitants.has(selection):
 		var s = habitants[selection]
 		draw_arc(s.pos, 21.0, 0.0, TAU, 32, Color.BLACK, 3.0)
-		draw_rect(Rect2(470, 558, 670, 82), Color(1, 1, 1, 0.88))
-		draw_string(police, Vector2(480, 580), "%s — %s (quartier %s) — %s — lieu : %s" % [s.nom, s.role, s.quartier, ETATS[s.etat], s.lieu], HORIZONTAL_ALIGNMENT_LEFT, 650, 17, Color.BLACK)
-		draw_string(police, Vector2(480, 603), "confiance dispensaire %.2f    croyance contacts %.2f    croyance puits %.2f" % [s.confiance, s.croyance_contact, s.croyance_puits], HORIZONTAL_ALIGNMENT_LEFT, 650, 17, Color.BLACK)
-		draw_string(police, Vector2(480, 626), "Règle appliquée : %s — %s" % [s.regle, s.detail], HORIZONTAL_ALIGNMENT_LEFT, 650, 17, Color.BLACK)
+		draw_rect(Rect2(470, 470, 670, 172), Color(1, 1, 1, 0.92))
+		draw_string(police, Vector2(480, 492), "%s — %s (quartier %s) — %s — lieu : %s" % [s.nom, s.role, s.quartier, ETATS[s.etat], s.lieu], HORIZONTAL_ALIGNMENT_LEFT, 650, 17, Color.BLACK)
+		draw_string(police, Vector2(480, 515), "confiance dispensaire %.2f    croyance contacts %.2f    croyance puits %.2f" % [s.confiance, s.croyance_contact, s.croyance_puits], HORIZONTAL_ALIGNMENT_LEFT, 650, 17, Color.BLACK)
+		draw_string(police, Vector2(480, 538), "Règle appliquée : %s — %s" % [s.regle, s.detail], HORIZONTAL_ALIGNMENT_LEFT, 650, 17, Color.BLACK)
+		draw_string(police, Vector2(480, 565), "Derniers souvenirs marquants :", HORIZONTAL_ALIGNMENT_LEFT, 650, 17, Color.BLACK)
+		var y := 586.0
+		if s.souvenirs.is_empty():
+			draw_string(police, Vector2(490, y), "(aucun pour l'instant)", HORIZONTAL_ALIGNMENT_LEFT, 640, 16, Color.BLACK)
+		for m in s.souvenirs:
+			draw_string(police, Vector2(490, y), m, HORIZONTAL_ALIGNMENT_LEFT, 640, 16, Color.BLACK)
+			y += 20.0
