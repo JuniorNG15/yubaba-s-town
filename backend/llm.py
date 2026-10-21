@@ -17,7 +17,7 @@ def modeles():
         return None
 
 
-def decider(systeme, question, options, timeout=120):
+def decider(systeme, question, options, timeout=120, raison_d_abord=False):
     """Demande un choix parmi `options`. Ne lève jamais d'exception : renvoie un dict."""
     schema = {
         "type": "object",
@@ -27,6 +27,9 @@ def decider(systeme, question, options, timeout=120):
         },
         "required": ["choix", "raison"],
     }
+    if raison_d_abord:
+        p = schema["properties"]
+        schema["properties"] = {"raison": p["raison"], "choix": p["choix"]}
     corps = {
         "model": MODELE,
         "stream": False,
