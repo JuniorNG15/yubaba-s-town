@@ -229,4 +229,4 @@ func _draw() -> void:
 			draw_string(police, Vector2(490, y), "(aucun pour l'instant)", HORIZONTAL_ALIGNMENT_LEFT, 640, 16, Color.BLACK)
 		for m in s.souvenirs:
 			draw_string(police, Vector2(490, y), m, HORIZONTAL_ALIGNMENT_LEFT, 640, 16, Color.BLACK)
-			y += 20.0
+			y += 20.0\
